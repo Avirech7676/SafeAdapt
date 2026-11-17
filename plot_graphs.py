@@ -298,47 +298,6 @@ def plot_model_compression_and_adaptation(output_path: Path):
     print(f"Saved Compression & Adaptation Figure: {output_path}")
 
 
-def plot_multi_domain_progression(output_path: Path):
-    """Recreates the multi-domain comparison with clean hospital labels."""
-    fig, ax = plt.subplots(figsize=(13.5, 6), dpi=300)
-    stages = [
-        "Source Train\n(Hospital 0)", "Source Val\n(Hospital 0)", "Source Test\n(In-Domain)",
-        "Target 1 Base\n(Hospital 1)", "Target 1 SafeAdapt\n(Hospital 1)",
-        "Target 2 Base\n(Hospital 2)", "Target 2 SafeAdapt\n(Hospital 2)"
-    ]
-
-    # Clinical verified values
-    acc_vals = [98.5, 96.0, 96.0, 70.1, 73.5, 59.4, 70.6]
-    f1_vals = [98.5, 96.0, 96.0, 58.8, 65.5, 31.9, 58.8]
-    auc_vals = [99.8, 99.2, 99.1, 82.6, 86.2, 95.6, 96.5]
-
-    x = np.arange(len(stages))
-    width = 0.25
-
-    r1 = ax.bar(x - width, acc_vals, width, label="Accuracy (%)", color="#3182CE", edgecolor="black")
-    r2 = ax.bar(x, f1_vals, width, label="F1-Score (%)", color="#38A169", edgecolor="black")
-    r3 = ax.bar(x + width, auc_vals, width, label="ROC-AUC (%)", color="#DD6B20", edgecolor="black")
-
-    ax.set_ylabel("Performance (%)", fontsize=12, fontweight="bold")
-    ax.set_title("ResNet-18 Evaluation: Source Domain vs Target Test-Time Adaptation\n(Hospital 0 Source vs Hospital 1 & Hospital 2 Adaptation)",
-                 fontsize=13, fontweight="bold", pad=15)
-    ax.set_xticks(x)
-    ax.set_xticklabels(stages, fontsize=9.5, fontweight="bold")
-    ax.set_ylim(0, 115)
-    ax.grid(True, linestyle=":", alpha=0.6, axis="y")
-    ax.legend(loc="upper right", fontsize=10, framealpha=0.95)
-
-    for r in [r1, r2, r3]:
-        for rect in r:
-            h = rect.get_height()
-            ax.annotate(f"{h:.1f}%", xy=(rect.get_x() + rect.get_width() / 2, h + 1),
-                        xytext=(0, 2), textcoords="offset points", ha="center", va="bottom", fontsize=7.5, fontweight="bold")
-
-    plt.tight_layout()
-    plt.savefig(output_path)
-    plt.close()
-    print(f"Saved Clean Multi-Domain Comparison: {output_path}")
-
 
 def main():
     base_default = Path(__file__).resolve().parent
@@ -384,16 +343,16 @@ def main():
     plot_intermediate_activations(model_path, graphs_dir / "intermediate_layer_activations.png", args.data_dir)
 
     # 4. Seed Trajectory Graph (Clean Hospital Labels)
-    t4_csv = metrics_dir / "live_table4_per_seed_auroc.csv"
-    plot_seeds_trajectories(t4_csv, graphs_dir / "live_per_seed_trajectory.png")
+    t4_csv = metrics_dir / "benchmark_per_seed_auroc.csv"
+    if not t4_csv.exists():
+        t4_csv = metrics_dir / "live_table4_per_seed_auroc.csv"
+    if t4_csv.exists():
+        plot_seeds_trajectories(t4_csv, graphs_dir / "live_per_seed_trajectory.png")
 
     # 5. Model Compression & Base-to-Adapted Progression Graph
     plot_model_compression_and_adaptation(graphs_dir / "model_compression_and_adaptation.png")
 
-    # 6. Clean Multi-Domain Comparison Graph
-    plot_multi_domain_progression(graphs_dir / "train_val_vs_target_test_comparison.png")
-
-    print("\nAll publication-grade graphs regenerated with clean hospital labels successfully.")
+    print("\nAll publication-grade graphs regenerated successfully.")
 
 
 if __name__ == "__main__":

@@ -405,13 +405,13 @@ def run_benchmark_experiments():
 
     print("=" * 70)
 
-    # Save Table III CSV
-    t3_path = metrics_dir / "live_table3_benchmark_comparison.csv"
+    # Save Benchmark Comparison CSV
+    t3_path = metrics_dir / "benchmark_methods_comparison.csv"
     with open(t3_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["Method", "AUROC_Mean", "AUROC_SD", "F1_Mean", "F1_SD", "Acc_Mean_Pct", "Acc_SD_Pct", "Harm_Mean_Pct", "Harm_SD_Pct"])
         writer.writerows(table3_rows)
-    print(f"Saved Table III to: {t3_path}")
+    print(f"Saved benchmark comparison table to: {t3_path}")
 
     # Save Table IV CSV
     print("\n" + "=" * 70)
@@ -429,12 +429,12 @@ def run_benchmark_experiments():
 
     print("=" * 85)
 
-    t4_path = metrics_dir / "live_table4_per_seed_auroc.csv"
+    t4_path = metrics_dir / "benchmark_per_seed_auroc.csv"
     with open(t4_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["Method", "Seed_42", "Seed_123", "Seed_2024", "Seed_7", "Seed_99", "Mean_AUROC"])
         writer.writerows(table4_rows)
-    print(f"Saved Live Table IV to: {t4_path}")
+    print(f"Saved benchmark per-seed AUROC table to: {t4_path}")
 
     # ========================================================
     # Plotting Live Figures

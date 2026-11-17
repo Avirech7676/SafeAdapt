@@ -262,8 +262,13 @@ def plot_reliability_and_calibration_figures(
 
 def load_live_benchmark_data(metrics_dir: Path) -> Dict[str, Dict[str, List[float]]]:
     """Loads live per-seed benchmark data from CSV tables if available."""
-    t4_path = metrics_dir / "live_table4_per_seed_auroc.csv"
-    t3_path = metrics_dir / "live_table3_benchmark_comparison.csv"
+    t4_path = metrics_dir / "benchmark_per_seed_auroc.csv"
+    if not t4_path.exists():
+        t4_path = metrics_dir / "live_table4_per_seed_auroc.csv"
+
+    t3_path = metrics_dir / "benchmark_methods_comparison.csv"
+    if not t3_path.exists():
+        t3_path = metrics_dir / "live_table3_benchmark_comparison.csv"
 
     if t4_path.exists() and t3_path.exists():
         df4 = pd.read_csv(t4_path)

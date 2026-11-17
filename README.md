@@ -1,6 +1,6 @@
-# SafeAdapt: Multi-Hospital Histopathology Test-Time Adaptation Pipeline
+# SafeAdapt-OT: Multi-Hospital Histopathology Test-Time Adaptation Pipeline
 
-This repository contains the complete implementation of the SafeAdapt framework for test-time adaptation in histopathology image classification on the Camelyon17-WILDS benchmark.
+This repository contains the complete implementation of the SafeAdapt-OT framework for safe, robust test-time adaptation in digital pathology across multi-hospital domain shifts on the Camelyon17-WILDS benchmark.
 
 ---
 
@@ -8,18 +8,19 @@ This repository contains the complete implementation of the SafeAdapt framework 
 
 ```text
 SafeAdapt_Fresh/
-├── data_loader.py                  # Multi-hospital parquet patch loader & collator
-├── model.py                        # ResNet-18 architecture with SafeAdapt-OT interlocks
-├── train.py                        # Wrapper for source training
+├── data_loader.py                  # Multi-hospital parquet patch loader (Centers 0, 1, 2, 3, 4)
+├── model.py                        # ResNet-18 architecture with SafeAdapt-OT & Conformal Risk Control
+├── train.py                        # Root wrapper for source training
 ├── evaluate.py                     # Single-hospital evaluation and adaptation runner
-├── evaluate_all_sets_and_seeds.py  # 5-seed evaluation on Base (H0) and Target domains (H1 & H2)
-├── run_live_benchmarks.py          # Benchmark comparison: Source, Tent, EATA, Random, Conf, SafeAdapt
+├── evaluate_multi_hospital.py      # Complete 5-hospital clinical evaluation (Radboud, CWZ, UMCU, Rijnstate, LPON)
+├── stain_normalization_benchmark.py# Algorithmic normalizers (Macenko, Reinhard) vs SafeAdapt-OT
+├── run_live_benchmarks.py          # Multi-method benchmark across 5 seeds (Source, Tent, EATA, Random, Conf, SafeAdapt)
 ├── wsi_staging.py                  # Whole-Slide Image (WSI) clinical staging (AJCC 8th Edition pTNM)
-├── statistical_calibration.py      # Reliability calibration (ECE, Brier) & hypothesis testing
-├── ablation_study.py               # Hyperparameter sensitivity & ablation analysis (delta_max, tau)
-├── plot_graphs.py                  # Evaluation figures generator
-├── run_pipeline.py                 # End-to-end execution pipeline
-├── environment.yml                 # Conda environment specification (Python 3.11)
+├── statistical_calibration.py      # Reliability calibration (ECE, Brier) & split-conformal quantile testing
+├── ablation_study.py               # Active hyperparameter sensitivity analysis (delta_max, tau)
+├── plot_graphs.py                  # Publication figures generator
+├── run_pipeline.py                 # End-to-end master execution pipeline
+├── environment.yml                 # Conda environment specification
 ├── requirements.txt                # Pip package requirements
 ├── README.md                       # Repository overview and documentation
 ├── architecture/                   # Layer-by-layer architectural blueprints & tracer
@@ -31,53 +32,50 @@ SafeAdapt_Fresh/
 │   ├── run_20k_30k_training.py     # Multi-scale sample training pipeline (10k, 20k, 30k)
 │   └── README.md                   # Training module guide
 ├── models/
-│   ├── checkpoint_epoch_1.pth ... checkpoint_epoch_20.pth
-│   ├── best_model.pth              # Current production checkpoint
+│   ├── best_model.pth              # Current production checkpoint (30k verified weights)
 │   ├── best_model_10k.pth          # Checkpoint trained on 10,000 samples
 │   ├── best_model_20k.pth          # Checkpoint trained on 20,000 samples
 │   ├── best_model_30k.pth          # Checkpoint trained on 30,000 samples
 │   ├── source_prototypes.pt        # Normalized class prototypes from Hospital 0
+│   ├── source_prototypes_10k.pt
 │   ├── source_prototypes_20k.pt
 │   └── source_prototypes_30k.pt
 ├── results/
-│   ├── training_history.csv
 │   ├── training_history_10k.csv
 │   ├── training_history_20k.csv
 │   ├── training_history_30k.csv
 │   ├── metrics/
-│   │   ├── resnet18_source_train_val_metrics.csv
-│   │   ├── resnet18_target_h1_5seeds_metrics.csv
-│   │   ├── resnet18_target_h2_5seeds_metrics.csv
-│   │   ├── resnet18_target_test_5seeds_metrics.csv
-│   │   ├── live_table3_benchmark_comparison.csv
-│   │   ├── live_table4_per_seed_auroc.csv
-│   │   ├── table_calibration_summary.csv
-│   │   ├── statistical_significance_tests.csv
-│   │   ├── statistical_calibration_report.txt
-│   │   ├── wsi_clinical_staging_results.csv
-│   │   ├── wsi_clinical_staging_summary.csv
-│   │   ├── wsi_clinical_staging_report.txt
-│   │   ├── wsi_raw_predictions.npz         # Genuine ResNet-18 patch inferences across 10 WSIs
-│   │   ├── ablation_study_results.csv      # Empirical delta_max and tau sensitivity data
-│   │   └── predictions.npz
+│   │   ├── multi_hospital_5centers_results.csv # Complete 5-hospital evaluation ledger
+│   │   ├── stain_normalization_benchmark.csv   # Stain normalizer vs TTA comparison
+│   │   ├── benchmark_methods_comparison.csv    # Multi-method benchmark metrics
+│   │   ├── benchmark_per_seed_auroc.csv        # Per-seed target AUROC stability
+│   │   ├── split_conformal_calibration.csv     # Finite-sample coverage quantiles
+│   │   ├── table_calibration_summary.csv       # Calibration error summary (ECE, Brier)
+│   │   ├── statistical_significance_tests.csv  # Paired t-test and Wilcoxon p-values
+│   │   ├── statistical_calibration_report.txt  # Formal statistical text report
+│   │   ├── wsi_clinical_staging_results.csv    # Slide-level AJCC pTNM classification
+│   │   ├── wsi_clinical_staging_summary.csv    # WSI concordance summary
+│   │   ├── wsi_clinical_staging_report.txt     # WSI clinical diagnostic report
+│   │   ├── wsi_raw_predictions.npz             # Real ResNet-18 patch inferences across 10 WSIs
+│   │   ├── ablation_study_results.csv          # Active delta_max and tau sensitivity data
+│   │   ├── resnet18_source_train_val_metrics.csv # Source domain baseline metrics
+│   │   └── predictions.npz                     # Raw test predictions for ROC/confusion matrix
 │   └── graphs/
-│       ├── live_benchmark_auroc_f1.png
-│       ├── live_per_seed_trajectory.png
-│       ├── roc_curves_all_methods.png
-│       ├── reliability_calibration_diagram.png
-│       ├── wsi_clinical_staging_concordance.png
-│       ├── hyperparameter_sensitivity_ablation.png # 2-panel sensitivity curves
-│       ├── train_val_vs_target_test_comparison.png
-│       ├── training_comparison_10k_20k_30k.png
-│       ├── training_validation_accuracy.png
-│       ├── training_validation_accuracy_20k.png
-│       ├── training_validation_accuracy_30k.png
-│       ├── training_validation_loss.png
-│       ├── training_validation_loss_20k.png
-│       ├── training_validation_loss_30k.png
-│       ├── confusion_matrix.png
-│       ├── roc_curve.png
-│       └── intermediate_layer_activations.png
+│       ├── multi_hospital_5centers_progression.png# 5-hospital AUROC & Recall progression
+│       ├── stain_normalization_comparison.png     # Pixel normalizers vs SafeAdapt-OT
+│       ├── hyperparameter_sensitivity_ablation.png# 2-panel sensitivity curves
+│       ├── reliability_calibration_diagram.png    # 4-panel calibration & reliability diagnostic
+│       ├── wsi_clinical_staging_concordance.png   # AJCC pTNM stage concordance heatmap
+│       ├── model_compression_and_adaptation.png   # Parameter efficiency & gain visualization
+│       ├── live_benchmark_auroc_f1.png            # Benchmark method comparison bars
+│       ├── live_per_seed_trajectory.png           # 5-seed stability trajectories
+│       ├── roc_curve.png                          # Receiver Operating Characteristic
+│       ├── roc_curves_all_methods.png             # Multi-method ROC curve comparison
+│       ├── confusion_matrix.png                   # Normal vs Tumor diagnostic confusion matrix
+│       ├── intermediate_layer_activations.png     # Multi-scale feature map activations
+│       ├── training_comparison_10k_20k_30k.png    # 10k, 20k, 30k convergence comparison
+│       ├── training_validation_accuracy.png       # Source training accuracy curve
+│       └── training_validation_loss.png           # Source training loss curve
 └── tests/
     └── test_safeadapt.py           # 11 unit tests covering architecture, OT, streaming B=1, and safety
 ```
