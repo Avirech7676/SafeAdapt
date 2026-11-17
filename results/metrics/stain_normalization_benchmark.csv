@@ -1,0 +1,8 @@
+Method,Type,AUROC,Accuracy,F1_Score,Recall,Precision
+Source Baseline (No Adaptation),Unadapted,0.877888,71.2,63.63636363636363,50.4,86.3013698630137
+Reinhard Color Normalization,Pixel-Level Normalizer,0.5897920000000001,50.0,0.0,0.0,0.0
+Macenko Stain Deconvolution,Pixel-Level Normalizer,0.433744,49.4,0.0,0.0,0.0
+Tent (Entropy Minimization),Test-Time Adaptation,0.357888,51.2,4.6875,2.4,100.0
+EATA (Entropy-Filtered TTA),Test-Time Adaptation,0.51024,56.00000000000001,21.428571428571427,12.0,100.0
+SafeAdapt-OT (Ours),Test-Time Adaptation,0.958928,89.2,89.41176470588236,91.2,87.6923076923077
+SafeAdapt-OT + Reinhard,Hybrid (Pixel + TTA),0.8919199999999999,78.8,82.39202657807309,99.2,70.45454545454545

@@ -12,7 +12,8 @@ Core Philosophy:
 - Enforces strict safety interlocks: L-infinity trust region clamping and conformal anomaly rollback.
 """
 
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -255,6 +256,35 @@ class ResNet18Binary(nn.Module):
 
         return trainable_params
 
+    def calibrate_conformal_threshold(
+        self,
+        val_loader,
+        alpha: float = 0.05,
+        device: torch.device = torch.device("cpu")
+    ) -> float:
+        """Calibrates finite-sample conformal rejection threshold on held-out source validation data.
+        
+        Under inductive conformal prediction, non-conformity scores S_i = 1 - max_c p(y_i=c | x_i)
+        are computed on n calibration samples. The (1 - alpha) quantile with finite-sample correction
+        guarantees that in-distribution samples produce non-conformity <= tau with probability >= 1 - alpha.
+        """
+        self.eval()
+        scores = []
+        with torch.no_grad():
+            for images, _ in val_loader:
+                images = images.to(device)
+                logits = self(images)
+                probs = F.softmax(logits, dim=-1)
+                non_conf = 1.0 - probs.max(dim=-1).values
+                scores.extend(non_conf.cpu().numpy().tolist())
+
+        scores = np.array(scores)
+        n = len(scores)
+        q_level = min(1.0, np.ceil((n + 1) * (1.0 - alpha)) / n)
+        tau_calibrated = float(np.quantile(scores, q_level))
+        self.conformal_threshold = tau_calibrated
+        return tau_calibrated
+
     def adapt_step(self, x: torch.Tensor, optimizer: torch.optim.Optimizer, **kwargs) -> float:
         """Executes one SafeAdapt test-time adaptation step on an unlabeled target batch."""
         loss, _ = self.adapt_step_ot(x, optimizer, **kwargs)
@@ -380,8 +410,12 @@ class ResNet18Binary(nn.Module):
             post_probs = F.softmax(post_logits, dim=-1)
             non_conformity = (1.0 - post_probs.max(dim=-1).values).mean().item()
 
+            effective_tau = getattr(self, "conformal_threshold", rollback_threshold)
+            if rollback_threshold != 0.48:  # explicit override
+                effective_tau = rollback_threshold
+
             rolled_back = False
-            if non_conformity > rollback_threshold:
+            if non_conformity > effective_tau:
                 for name, p in self.named_parameters():
                     if p.requires_grad and name in pre_step_state:
                         p.copy_(pre_step_state[name])

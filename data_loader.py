@@ -147,6 +147,10 @@ def load_hospital_data(
         target_center = 1
     elif h_str in ("2", "h2", "umcu", "center2", "umc utrecht"):
         target_center = 2
+    elif h_str in ("3", "h3", "rijnstate", "center3", "rijnstate hospital"):
+        target_center = 3
+    elif h_str in ("4", "h4", "lpon", "center4", "lpon enschede"):
+        target_center = 4
     else:
         target_center = int(hospital)
 
@@ -303,6 +307,78 @@ def load_hospital_data(
             for i in idx_tum:
                 raw_tumors.append(img_col[int(i)].as_py()["bytes"])
 
+    # =========================================================================
+    # Center 3 (Rijnstate Hospital): Target Hospital 3
+    # =========================================================================
+    elif target_center == 3:
+        # Normals from train-00008, train-00009, train-00010, train-00007
+        for fn in ["train-00008-of-00014.parquet", "train-00009-of-00014.parquet", "train-00010-of-00014.parquet", "train-00007-of-00014.parquet"]:
+            if len(raw_normals) >= per_class:
+                break
+            p_file = data_path / fn
+            if not p_file.exists():
+                continue
+            tab = pq.read_table(p_file, columns=["image", "label", "center"])
+            c_arr = tab["center"].to_numpy()
+            l_arr = tab["label"].to_numpy()
+            img_col = tab["image"]
+            needed = per_class - len(raw_normals)
+            idx_norm = np.where((c_arr == 3) & (l_arr == 0))[0][:needed]
+            for i in idx_norm:
+                raw_normals.append(img_col[int(i)].as_py()["bytes"])
+
+        # Tumors from train-00000, train-00001, train-00002, train-00013
+        for fn in ["train-00000-of-00014.parquet", "train-00001-of-00014.parquet", "train-00002-of-00014.parquet", "train-00013-of-00014.parquet"]:
+            if len(raw_tumors) >= per_class:
+                break
+            p_file = data_path / fn
+            if not p_file.exists():
+                continue
+            tab = pq.read_table(p_file, columns=["image", "label", "center"])
+            c_arr = tab["center"].to_numpy()
+            l_arr = tab["label"].to_numpy()
+            img_col = tab["image"]
+            needed = per_class - len(raw_tumors)
+            idx_tum = np.where((c_arr == 3) & (l_arr == 1))[0][:needed]
+            for i in idx_tum:
+                raw_tumors.append(img_col[int(i)].as_py()["bytes"])
+
+    # =========================================================================
+    # Center 4 (LPON Enschede): Target Hospital 4
+    # =========================================================================
+    elif target_center == 4:
+        # Normals from train-00011, train-00012, train-00010, train-00013
+        for fn in ["train-00011-of-00014.parquet", "train-00012-of-00014.parquet", "train-00010-of-00014.parquet", "train-00013-of-00014.parquet"]:
+            if len(raw_normals) >= per_class:
+                break
+            p_file = data_path / fn
+            if not p_file.exists():
+                continue
+            tab = pq.read_table(p_file, columns=["image", "label", "center"])
+            c_arr = tab["center"].to_numpy()
+            l_arr = tab["label"].to_numpy()
+            img_col = tab["image"]
+            needed = per_class - len(raw_normals)
+            idx_norm = np.where((c_arr == 4) & (l_arr == 0))[0][:needed]
+            for i in idx_norm:
+                raw_normals.append(img_col[int(i)].as_py()["bytes"])
+
+        # Tumors from train-00003, train-00004, train-00005, train-00002
+        for fn in ["train-00003-of-00014.parquet", "train-00004-of-00014.parquet", "train-00005-of-00014.parquet", "train-00002-of-00014.parquet"]:
+            if len(raw_tumors) >= per_class:
+                break
+            p_file = data_path / fn
+            if not p_file.exists():
+                continue
+            tab = pq.read_table(p_file, columns=["image", "label", "center"])
+            c_arr = tab["center"].to_numpy()
+            l_arr = tab["label"].to_numpy()
+            img_col = tab["image"]
+            needed = per_class - len(raw_tumors)
+            idx_tum = np.where((c_arr == 4) & (l_arr == 1))[0][:needed]
+            for i in idx_tum:
+                raw_tumors.append(img_col[int(i)].as_py()["bytes"])
+
     total_loaded = len(raw_normals) + len(raw_tumors)
     all_raw = raw_normals + raw_tumors
     all_labels = [0] * len(raw_normals) + [1] * len(raw_tumors)
@@ -370,9 +446,18 @@ def get_dataloaders(
         if t_str in ("1", "cwz", "center1", "h1"):
             target_center_code = 1
             target_name = "CWZ Nijmegen (Center 1)"
-        else:
+        elif t_str in ("2", "umcu", "center2", "h2"):
             target_center_code = 2
             target_name = "UMC Utrecht (Center 2)"
+        elif t_str in ("3", "rijnstate", "center3", "h3"):
+            target_center_code = 3
+            target_name = "Rijnstate Hospital (Center 3)"
+        elif t_str in ("4", "lpon", "center4", "h4"):
+            target_center_code = 4
+            target_name = "LPON Enschede (Center 4)"
+        else:
+            target_center_code = int(target_hospital)
+            target_name = f"Hospital {target_center_code}"
         print(f"Loading Target Hospital ({target_name}) Test Set ({test_samples} samples)...")
         test_dataset = load_hospital_data(data_dir, hospital=target_center_code, split="test", num_samples=test_samples)
         test_loader = DataLoader(test_dataset, batch_size=actual_micro, shuffle=False, collate_fn=parallel_collate_fn)

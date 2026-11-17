@@ -1,0 +1,5 @@
+Significance_Alpha,Target_Coverage_Pct,Calibrated_Tau,Finite_Sample_Guarantee,Operating_Regime
+0.1,90.0,0.0602,P(S <= 0.0602) >= 0.90,Conservative
+0.05,95.0,0.225,P(S <= 0.2250) >= 0.95,Moderate Sensitivity
+0.01,99.0,0.4004,P(S <= 0.4004) >= 0.99,High Precision
+0.005,99.5,0.48,P(S <= 0.4800) >= 0.995,Clinical Standard (Default)

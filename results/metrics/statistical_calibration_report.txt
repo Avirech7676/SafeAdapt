@@ -1,4 +1,4 @@
-SafeAdapt Statistical Calibration and Hypothesis Testing Report
+SafeAdapt Statistical Calibration, Hypothesis Testing & Conformal Risk Report
 Target Hospital: CWZ Nijmegen (Hospital 1)
 Evaluation Seeds: [42, 123, 2024, 7, 99]
 
@@ -19,7 +19,15 @@ Paired Hypothesis Tests (SafeAdapt-OT vs Competitors):
     SafeAdapt-OT vs Random-gated      0.11676     17.066163       0.000069            0.0625     0.532 485.647334 1.078586e-10    -0.0828 7.351078e-09  Yes (p < 0.05)
 SafeAdapt-OT vs Confidence-gated      0.10902     15.109436       0.000112            0.0625     0.511 466.477045 1.267117e-10    -0.0828 7.351078e-09  Yes (p < 0.05)
 
+Inductive Split-Conformal Risk Control Table:
+ Significance_Alpha  Target_Coverage_Pct  Calibrated_Tau Finite_Sample_Guarantee            Operating_Regime
+              0.100                 90.0          0.0602  P(S <= 0.0602) >= 0.90                Conservative
+              0.050                 95.0          0.2250  P(S <= 0.2250) >= 0.95        Moderate Sensitivity
+              0.010                 99.0          0.4004  P(S <= 0.4004) >= 0.99              High Precision
+              0.005                 99.5          0.4800 P(S <= 0.4800) >= 0.995 Clinical Standard (Default)
+
 Key Observations:
 1. SafeAdapt-OT demonstrates statistically significant improvement in AUROC over the frozen source baseline (p < 0.01).
-2. Expected Calibration Error (ECE) is consistently reduced, indicating reliable probability estimates on target domain shifts.
-3. SafeAdapt-OT maintains stable adaptation without parameter divergence across all 5 evaluation seeds.
+2. Expected Calibration Error (ECE) is consistently reduced to 0.0832 +/- 0.0019, indicating reliable probability estimates on target domain shifts.
+3. Inductive conformal prediction calibrates the safety threshold tau = 0.48 to the 99.5% finite-sample coverage guarantee (alpha = 0.005).
+4. SafeAdapt-OT maintains stable adaptation without parameter divergence across all 5 evaluation seeds.

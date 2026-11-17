@@ -184,6 +184,15 @@ class TestSafetyInterlocks:
         if rolled_back:
             assert torch.allclose(model.bn1.weight, initial_bn1_weight, atol=1e-6), "Rollback failed to restore pre-step state"
 
+    def test_calibrate_conformal_threshold(self):
+        """Verifies inductive split-conformal calibration computes valid quantile."""
+        model = ResNet18Binary(pretrained=False)
+        dummy_loader = [(torch.randn(8, 3, 224, 224), torch.zeros(8)) for _ in range(3)]
+        tau = model.calibrate_conformal_threshold(dummy_loader, alpha=0.05)
+        assert 0.0 <= tau <= 1.0
+        assert hasattr(model, "conformal_threshold")
+        assert model.conformal_threshold == tau
+
 
 class TestClinicalStagingAndCalibration:
     """Tests for WSI lymph node staging and calibration metrics."""
