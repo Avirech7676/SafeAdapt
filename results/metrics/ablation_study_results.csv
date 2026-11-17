@@ -1,0 +1,13 @@
+param,value,auroc,accuracy,recall,rollbacks,total_steps
+delta_max,0.0005,0.911088,81.0,72.39999999999999,0,10
+delta_max,0.001,0.9289120000000001,85.6,83.2,0,10
+delta_max,0.002,0.9475359999999999,88.6,89.60000000000001,0,10
+delta_max,0.003,0.956048,89.0,90.8,0,10
+delta_max,0.005,0.958928,89.2,91.2,0,10
+delta_max,0.05,0.958928,89.2,91.2,0,10
+rollback_threshold,0.07,0.877888,71.2,50.4,10,10
+rollback_threshold,0.08,0.877888,71.2,50.4,10,10
+rollback_threshold,0.09,0.877888,71.2,50.4,10,10
+rollback_threshold,0.1,0.882,72.39999999999999,53.2,9,10
+rollback_threshold,0.12,0.958928,89.2,91.2,0,10
+rollback_threshold,0.48,0.958928,89.2,91.2,0,10

@@ -1,0 +1,14 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Pytest cache
+.pytest_cache/
+
+# Intermediate epoch checkpoints (895MB, best_model*.pth are tracked for evaluation & TTA)
+models/checkpoint_epoch_*.pth
+
+# OS generated files
+.DS_Store
+Thumbs.db

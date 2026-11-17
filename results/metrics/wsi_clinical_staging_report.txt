@@ -1,0 +1,23 @@
+SafeAdapt Clinical Whole-Slide Image (WSI) Staging Report
+Target Hospital: Hospital 1 (CWZ Nijmegen, Center 1)
+Staging Standard: AJCC 8th Edition Pathological Nodal Staging (pTNM)
+
+Cohort Comparison Summary:
+                   method  total_slides  stage_accuracy  discordance_rate  macro_sensitivity  micro_sensitivity  negative_specificity  burden_mae  burden_rmse  pearson_r  spearman_rho
+Source (Frozen ResNet-18)            10             0.9               0.1                0.9                1.0                   1.0    0.199000     0.262659   0.462639      0.451169
+           Tent (Ungated)            10             0.9               0.1                0.9                1.0                   1.0    0.195000     0.267961   0.440707      0.449799
+                     EATA            10             0.9               0.1                0.9                1.0                   1.0    0.199333     0.267291   0.448570      0.449799
+      SafeAdapt-OT (Ours)            10             0.9               0.1                0.9                1.0                   1.0    0.124667     0.193856   0.560772      0.527649
+
+Per-Slide Detailed Clinical Staging Ledger (SafeAdapt-OT):
+ slide_id  patient_id  node_id  total_patches true_stage pred_stage  stage_correct  true_diameter_mm  pred_diameter_mm  true_burden  pred_burden
+       10          20        2            300       pN1a        pN0          False         11.846593          0.000000     0.500000     0.000000
+       11          20        4            300       pN1a       pN1a           True          2.006709         12.249952     0.500000     0.410000
+       12          21        3            300       pN1a       pN1a           True         12.222251         16.291308     0.500000     0.516667
+       13          22        4            300       pN1a       pN1a           True         14.264716         17.013124     0.500000     0.256667
+       14          24        1            300       pN1a       pN1a           True         11.813776         15.132253     0.106667     0.146667
+       15          24        2            300       pN1a       pN1a           True         15.790841         21.449986     0.056667     0.073333
+       16          34        3            300       pN1a       pN1a           True         10.535450         13.392870     0.500000     0.560000
+       17          36        3            300       pN1a       pN1a           True         12.352010         14.784320     0.500000     0.276667
+       18          38        2            300       pN1a       pN1a           True         14.173733         15.667628     0.500000     0.446667
+       19          39        1            300       pN1a       pN1a           True          4.903550         13.141222     0.500000     0.496667
