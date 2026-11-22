@@ -29,7 +29,7 @@ def sinkhorn_knopp_transport(
 ) -> torch.Tensor:
     """Finds the optimal, balanced soft assignment between images and class prototypes.
 
-    Plain English explanation:
+    Plain explanation:
     --------------------------
     When testing on a new hospital, we don't have true labels. We want to match each
     image patch to our reference prototypes (Normal vs Tumor). However, if we do simple
