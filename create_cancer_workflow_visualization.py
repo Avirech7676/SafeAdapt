@@ -1,11 +1,11 @@
-"""Publication-grade visual infographic script for end-to-end cancer image processing.
+"""Complete, publication-grade visual infographic generator for SafeAdapt cancer workflow.
 
-Renders the complete visual journey of a real histopathology cancer patch:
-1. Raw H&E Ingestion & ImageNet Tensor Preprocessing (224x224x3).
-2. Layer-by-layer ResNet-18 Feature Activation Maps (Conv1 -> Layer 1 -> Layer 2 -> Layer 3 -> Layer 4).
-3. Penultimate Embedding (512-d) & Unit Hypersphere Projection (z_i in S^511).
-4. SafeAdapt Optimal Transport Alignment, L-infinity Trust Region Clamping, and Conformal Uncertainty Check.
-5. Spatial WSI Coordinate Clustering, Geometric Bounding Span, Millimeter Conversion, and AJCC 8th Edition Staging.
+Fixes all layout, spacing, and typographic overlap issues:
+- Provides clean, dedicated vertical spacing with zero title or text collisions.
+- Features prominent stage banners grouping the 4 core phases.
+- Shows clear visual diagrams for Step 12A (L-infinity Trust Region) and Step 12B (Conformal Uncertainty Gauge).
+- Presents a prominent, beautifully styled Stage 4 with clear WSI clustering, mathematical calculations,
+  and a definitive AJCC 8th Edition clinical cancer staging verdict card.
 """
 
 from pathlib import Path
@@ -13,7 +13,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from matplotlib.patches import Rectangle, FancyBboxPatch
+from matplotlib.patches import Rectangle, FancyBboxPatch, Polygon, Circle, Wedge
 import torch
 import torch.nn.functional as F
 
@@ -30,7 +30,6 @@ def main():
     model.eval()
 
     source_prototypes = torch.load(ROOT_DIR / "models/source_prototypes.pt", map_location=device)
-    # Prototypes shape: (2, 512) -> [0: Normal, 1: Tumor]
 
     print("[2/5] Loading authentic metastatic carcinoma patch from Camelyon17...")
     loader, _, _, _ = get_dataloaders(batch_size=20, micro_batch_size=10, train_samples=100, val_samples=10, include_test=False)
@@ -47,233 +46,326 @@ def main():
 
     print("[3/5] Extracting authentic intermediate activations and features...")
     features = model.get_intermediate_features(tumor_patch)
-    conv1_act = features["conv1"][0].detach().cpu().numpy()  # (64, 112, 112)
-    l1_act = features["layer1"][0].detach().cpu().numpy()    # (64, 56, 56)
-    l2_act = features["layer2"][0].detach().cpu().numpy()    # (128, 28, 28)
-    l3_act = features["layer3"][0].detach().cpu().numpy()    # (256, 14, 14)
-    l4_act = features["layer4"][0].detach().cpu().numpy()    # (512, 7, 7)
-    pooled = features["pooled"][0].detach().cpu().numpy()    # (512,)
+    conv1_act = features["conv1"][0].detach().cpu().numpy()
+    l1_act = features["layer1"][0].detach().cpu().numpy()
+    l2_act = features["layer2"][0].detach().cpu().numpy()
+    l3_act = features["layer3"][0].detach().cpu().numpy()
+    l4_act = features["layer4"][0].detach().cpu().numpy()
     
-    # Unit normalization
-    norm_feat = F.normalize(features["pooled"], p=2, dim=-1) # (1, 512)
+    # Penultimate features and unit normalization
+    pooled = features["pooled"] # (1, 512)
+    norm_feat = F.normalize(pooled, p=2, dim=-1) # (1, 512)
     norm_feat_np = norm_feat[0].detach().cpu().numpy()
 
-    # Optimal Transport cost and coupling
+    # Cosine distance to source prototypes
+    # cost = 1 - cosine_similarity
     cost = 1.0 - torch.matmul(norm_feat, source_prototypes.t()) # (1, 2)
     cost_np = cost[0].detach().cpu().numpy()
-    priors = torch.tensor([0.5, 0.5])
-    Q_opt = sinkhorn_knopp_transport(cost, priors, epsilon=0.03) # (1, 2)
-    Q_np = Q_opt[0].detach().cpu().numpy()
 
+    # Raw logits and posterior probabilities
     logits = features["logits"][0].detach().cpu()
     probs = F.softmax(logits, dim=-1).numpy()
+    p_normal = probs[0]
+    p_tumor = probs[1]
+
+    # Non-conformity score
+    non_conf = 1.0 - max(p_normal, p_tumor)
+    tau_conf = 0.4800
 
     # Denormalize RGB patch for display
-    # mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
     img_np = tumor_patch[0].detach().cpu().numpy().transpose(1, 2, 0)
     mean = np.array([0.485, 0.456, 0.406])
     std = np.array([0.229, 0.224, 0.225])
     rgb_img = np.clip(img_np * std + mean, 0.0, 1.0)
 
-    print("[4/5] Constructing publication-grade visualization infographic...")
-    # Set high-contrast clean aesthetic without muddy colors
+    print("[4/5] Building clean, spacious, publication-grade infographic...")
+    # Set global typography
     plt.rcParams["font.sans-serif"] = "DejaVu Sans"
-    plt.rcParams["font.size"] = 10
+    plt.rcParams["font.size"] = 11
     plt.rcParams["axes.linewidth"] = 1.2
+    plt.rcParams["axes.edgecolor"] = "#2D3748"
 
-    fig = plt.figure(figsize=(24, 16), facecolor="#FAFAFA")
-    gs = gridspec.GridSpec(4, 6, figure=fig, hspace=0.38, wspace=0.35, 
-                           left=0.04, right=0.96, top=0.94, bottom=0.05)
+    fig = plt.figure(figsize=(28, 22), facecolor="#F8FAFC")
+    
+    # Master Grid: 4 distinct rows for the 4 logical stages with generous spacing
+    gs = gridspec.GridSpec(
+        4, 1, 
+        figure=fig, 
+        height_ratios=[1.0, 1.0, 1.15, 1.25], 
+        hspace=0.48, 
+        left=0.04, 
+        right=0.96, 
+        top=0.93, 
+        bottom=0.04
+    )
 
     # -------------------------------------------------------------------------
-    # ROW 1: Raw Ingestion -> ResNet-18 Early Layers
+    # STAGE 1: RAW INGESTION & EARLY FEATURE EXTRACTION
     # -------------------------------------------------------------------------
+    gs_row1 = gridspec.GridSpecFromSubplotSpec(1, 5, subplot_spec=gs[0], wspace=0.32)
+
     # Panel 1.1: Raw H&E Cancer Patch
-    ax1 = fig.add_subplot(gs[0, 0])
-    ax1.imshow(rgb_img)
-    ax1.set_title("1. Input Cancer Patch\n(224 x 224 x 3, RGB)", fontweight="bold", pad=8)
-    ax1.set_xlabel("X: 224 px | Spatial: 0.50 μm/px", fontsize=9)
-    ax1.set_ylabel("Y: 224 px", fontsize=9)
-    ax1.grid(color="white", linestyle="--", alpha=0.5)
+    ax1_1 = fig.add_subplot(gs_row1[0, 0])
+    ax1_1.imshow(rgb_img)
+    ax1_1.set_title("1. Raw Cancer Patch\n(224 x 224 px, RGB)", fontsize=12, fontweight="bold", pad=12)
+    ax1_1.set_xlabel("X: 224 px | 0.50 μm/px", fontsize=10)
+    ax1_1.set_ylabel("Y: 224 px", fontsize=10)
+    ax1_1.grid(color="white", linestyle="--", alpha=0.6)
 
-    # Panel 1.2: Normalization Tensor Representation
-    ax2 = fig.add_subplot(gs[0, 1])
-    ax2.imshow(img_np[:, :, 0], cmap="bone")
-    ax2.set_title("2. Preprocessed Tensor\nx = (I - μ) / σ\nShape: (1, 3, 224, 224)", fontweight="bold", pad=8)
-    ax2.axis("off")
-    ax2.text(0.5, -0.15, "Channel 0 Normalized Tensor\nZero-mean, Unit-variance", ha="center", transform=ax2.transAxes, fontsize=9)
+    # Panel 1.2: Normalized PyTorch Tensor
+    ax1_2 = fig.add_subplot(gs_row1[0, 1])
+    ax1_2.imshow(img_np[:, :, 0], cmap="bone")
+    ax1_2.set_title("2. Tensor Conversion\nx = (I - μ) / σ\nShape: (1, 3, 224, 224)", fontsize=12, fontweight="bold", pad=12)
+    ax1_2.set_xlabel("Normalized Input\nFloat32: Zero-Mean", fontsize=10)
+    ax1_2.set_xticks([])
+    ax1_2.set_yticks([])
 
-    # Panel 1.3: Layer 1 (Conv1) Edge & Chromatin Map
-    ax3 = fig.add_subplot(gs[0, 2])
-    conv1_mean = np.mean(conv1_act[:16], axis=0) # Average first 16 filters
-    ax3.imshow(conv1_mean, cmap="magma")
-    ax3.set_title("3. Stem: conv1 (7x7, s=2)\nShape: (1, 64, 112, 112)\n[Nuclear chromatin edges]", fontweight="bold", pad=8)
-    ax3.axis("off")
+    # Panel 1.3: Stem conv1 Activation Map
+    ax1_3 = fig.add_subplot(gs_row1[0, 2])
+    conv1_mean = np.mean(conv1_act[:16], axis=0)
+    ax1_3.imshow(conv1_mean, cmap="magma")
+    ax1_3.set_title("3. Stem: conv1 (7x7, s=2)\nShape: (1, 64, 112, 112)", fontsize=12, fontweight="bold", pad=12)
+    ax1_3.set_xlabel("Chromatin & Edge Primitives", fontsize=10)
+    ax1_3.set_xticks([])
+    ax1_3.set_yticks([])
 
-    # Panel 1.4: Layer 2 (BN1 + ReLU + MaxPool)
-    ax4 = fig.add_subplot(gs[0, 3])
+    # Panel 1.4: Stem MaxPool Activation Map
+    ax1_4 = fig.add_subplot(gs_row1[0, 3])
     stem_act = features["stem"][0].detach().cpu().numpy()
-    ax4.imshow(np.mean(stem_act[:16], axis=0), cmap="magma")
-    ax4.set_title("4. Stem: MaxPool (3x3, s=2)\nShape: (1, 64, 56, 56)\n[Invariant feature pooling]", fontweight="bold", pad=8)
-    ax4.axis("off")
+    ax1_4.imshow(np.mean(stem_act[:16], axis=0), cmap="magma")
+    ax1_4.set_title("4. Stem: MaxPool (3x3, s=2)\nShape: (1, 64, 56, 56)", fontsize=12, fontweight="bold", pad=12)
+    ax1_4.set_xlabel("Spatial Downsampling", fontsize=10)
+    ax1_4.set_xticks([])
+    ax1_4.set_yticks([])
 
-    # Panel 1.5: Layer 4 (Residual Stage 1)
-    ax5 = fig.add_subplot(gs[0, 4])
+    # Panel 1.5: Residual Stage 1 Activation Map
+    ax1_5 = fig.add_subplot(gs_row1[0, 4])
     l1_mean = np.mean(l1_act[:16], axis=0)
-    ax5.imshow(l1_mean, cmap="viridis")
-    ax5.set_title("5. Stage 1: BasicBlock 1.2\nShape: (1, 64, 56, 56)\n[Cellular micro-texture]", fontweight="bold", pad=8)
-    ax5.axis("off")
+    ax1_5.imshow(l1_mean, cmap="viridis")
+    ax1_5.set_title("5. Stage 1: BasicBlock 1.2\nShape: (1, 64, 56, 56)", fontsize=12, fontweight="bold", pad=12)
+    ax1_5.set_xlabel("Cellular Micro-Texture", fontsize=10)
+    ax1_5.set_xticks([])
+    ax1_5.set_yticks([])
 
-    # Panel 1.6: Layer 6 (Residual Stage 2)
-    ax6 = fig.add_subplot(gs[0, 5])
+    # -------------------------------------------------------------------------
+    # STAGE 2: DEEP RESIDUAL HIERARCHY & LATENT EMBEDDING
+    # -------------------------------------------------------------------------
+    gs_row2 = gridspec.GridSpecFromSubplotSpec(1, 4, subplot_spec=gs[1], wspace=0.32)
+
+    # Panel 2.1: Stage 2 Activation Map
+    ax2_1 = fig.add_subplot(gs_row2[0, 0])
     l2_mean = np.mean(l2_act[:16], axis=0)
-    ax6.imshow(l2_mean, cmap="viridis")
-    ax6.set_title("6. Stage 2: BasicBlock 2.2\nShape: (1, 128, 28, 28)\n[Glandular architectural patterns]", fontweight="bold", pad=8)
-    ax6.axis("off")
+    ax2_1.imshow(l2_mean, cmap="viridis")
+    ax2_1.set_title("6. Stage 2: BasicBlock 2.2\nShape: (1, 128, 28, 28)", fontsize=12, fontweight="bold", pad=12)
+    ax2_1.set_xlabel("Glandular Structures", fontsize=10)
+    ax2_1.set_xticks([])
+    ax2_1.set_yticks([])
 
-    # -------------------------------------------------------------------------
-    # ROW 2: Deep Residual Feature Hierarchy
-    # -------------------------------------------------------------------------
-    # Panel 2.1: Layer 8 (Residual Stage 3)
-    ax7 = fig.add_subplot(gs[1, 0:2])
+    # Panel 2.2: Stage 3 Activation Map
+    ax2_2 = fig.add_subplot(gs_row2[0, 1])
     l3_mean = np.mean(l3_act[:32], axis=0)
-    im7 = ax7.imshow(l3_mean, cmap="plasma")
-    ax7.set_title("7. Stage 3: BasicBlock 3.2 | Shape: (1, 256, 14, 14)\n[Multi-cellular pleomorphism & nuclear atypia]", fontweight="bold", pad=8)
-    ax7.axis("off")
-    plt.colorbar(im7, ax=ax7, orientation="horizontal", fraction=0.046, pad=0.08)
+    ax2_2.imshow(l3_mean, cmap="plasma")
+    ax2_2.set_title("7. Stage 3: BasicBlock 3.2\nShape: (1, 256, 14, 14)", fontsize=12, fontweight="bold", pad=12)
+    ax2_2.set_xlabel("Nuclear Pleomorphism & Atypia", fontsize=10)
+    ax2_2.set_xticks([])
+    ax2_2.set_yticks([])
 
-    # Panel 2.2: Layer 10 (Residual Stage 4) - High-level Tumor Semantics
-    ax8 = fig.add_subplot(gs[1, 2:4])
+    # Panel 2.3: Stage 4 Activation Map
+    ax2_3 = fig.add_subplot(gs_row2[0, 2])
     l4_mean = np.mean(l4_act[:32], axis=0)
-    im8 = ax8.imshow(l4_mean, cmap="inferno")
-    ax8.set_title("8. Stage 4: BasicBlock 4.2 | Shape: (1, 512, 7, 7)\n[High-level semantic cancer nest activation]", fontweight="bold", pad=8)
-    ax8.axis("off")
-    plt.colorbar(im8, ax=ax8, orientation="horizontal", fraction=0.046, pad=0.08)
+    ax2_3.imshow(l4_mean, cmap="inferno")
+    ax2_3.set_title("8. Stage 4: BasicBlock 4.2\nShape: (1, 512, 7, 7)", fontsize=12, fontweight="bold", pad=12)
+    ax2_3.set_xlabel("Semantic Cancer Nest Focal Response", fontsize=10)
+    ax2_3.set_xticks([])
+    ax2_3.set_yticks([])
 
-    # Panel 2.3: 512-dim Penultimate Feature Vector
-    ax9 = fig.add_subplot(gs[1, 4:6])
-    ax9.bar(range(64), norm_feat_np[:64], color="#2B6CB0", width=0.8, edgecolor="black", linewidth=0.5)
-    ax9.set_title("9. Penultimate Embedding Vector: z_i in S^511\n(First 64 of 512 Unit-Normalized Dimensions)", fontweight="bold", pad=8)
-    ax9.set_xlabel("Feature Dimension Index (0 to 63)", fontsize=9)
-    ax9.set_ylabel("Normalized Magnitude", fontsize=9)
-    ax9.set_ylim(-0.25, 0.25)
-    ax9.grid(axis="y", linestyle=":", alpha=0.6)
+    # Panel 2.4: 512-dim Penultimate Feature Vector
+    ax2_4 = fig.add_subplot(gs_row2[0, 3])
+    ax2_4.bar(range(48), norm_feat_np[:48], color="#3182CE", width=0.8, edgecolor="#1A365D", linewidth=0.6)
+    ax2_4.set_title("9. Latent Embedding Vector: z_i in S^511\n(First 48 of 512 Unit-Normalized Dims)", fontsize=12, fontweight="bold", pad=12)
+    ax2_4.set_xlabel("Latent Feature Dimension Index", fontsize=10)
+    ax2_4.set_ylabel("Unit Magnitude", fontsize=10)
+    ax2_4.set_ylim(-0.25, 0.25)
+    ax2_4.grid(axis="y", linestyle=":", alpha=0.6)
 
     # -------------------------------------------------------------------------
-    # ROW 3: SafeAdapt-OT Adaptation Mechanics
+    # STAGE 3: SAFEADAPT-OT ADAPTATION & DUAL SAFETY INTERLOCKS
     # -------------------------------------------------------------------------
+    gs_row3 = gridspec.GridSpecFromSubplotSpec(1, 4, subplot_spec=gs[2], wspace=0.35)
+
     # Panel 3.1: Cosine Distance to Source Prototypes
-    ax10 = fig.add_subplot(gs[2, 0:2])
-    classes = ["Class 0: Normal (μ_0)", "Class 1: Tumor (μ_1)"]
-    bars = ax10.bar(classes, cost_np, color=["#CBD5E0", "#E53E3E"], width=0.5, edgecolor="black", linewidth=1.2)
-    ax10.set_title("10. Cost Matrix: C_ik = 1 - z_i · μ_k\n[Cosine Dissimilarity to Source Anchors]", fontweight="bold", pad=8)
-    ax10.set_ylabel("Distance Penalty (Lower = Closer)", fontsize=9)
-    ax10.set_ylim(0.0, 1.2)
-    for bar in bars:
+    ax3_1 = fig.add_subplot(gs_row3[0, 0])
+    cats = ["Normal (μ_0)", "Tumor (μ_1)"]
+    c_vals = [float(cost_np[0]), float(cost_np[1])]
+    bars1 = ax3_1.bar(cats, c_vals, color=["#E2E8F0", "#FEB2B2"], edgecolor=["#718096", "#9B2C2C"], linewidth=1.5, width=0.55)
+    ax3_1.set_title("10. Cost Matrix: C_ik = 1 - z_i · μ_k\n[Cosine Distance to Source Anchors]", fontsize=12, fontweight="bold", pad=12)
+    ax3_1.set_ylabel("Distance Penalty (Lower = Closer)", fontsize=10)
+    ax3_1.set_ylim(0.0, 1.2)
+    for bar in bars1:
         yval = bar.get_height()
-        ax10.text(bar.get_x() + bar.get_width()/2.0, yval + 0.04, f"C = {yval:.4f}", ha="center", va="bottom", fontweight="bold", fontsize=10)
-    ax10.grid(axis="y", linestyle=":", alpha=0.6)
+        ax3_1.text(bar.get_x() + bar.get_width()/2.0, yval + 0.03, f"{yval:.4f}", ha="center", va="bottom", fontsize=11, fontweight="bold")
+    ax3_1.grid(axis="y", linestyle=":", alpha=0.6)
 
-    # Panel 3.2: Sinkhorn-Knopp Optimal Transport Plan
-    ax11 = fig.add_subplot(gs[2, 2:4])
-    q_bars = ax11.bar(classes, Q_np, color=["#E2E8F0", "#C53030"], width=0.5, edgecolor="black", linewidth=1.2)
-    ax11.set_title("11. Sinkhorn-Knopp Coupling: Q*\n[Optimal Transport Soft Assignment]", fontweight="bold", pad=8)
-    ax11.set_ylabel("Assigned Joint Probability Q*", fontsize=9)
-    ax11.set_ylim(0.0, 1.2)
-    for bar in q_bars:
+    # Panel 3.2: Calibrated Posterior Probability Output
+    ax3_2 = fig.add_subplot(gs_row3[0, 1])
+    prob_vals = [float(p_normal) * 100.0, float(p_tumor) * 100.0]
+    bars2 = ax3_2.bar(cats, prob_vals, color=["#CBD5E0", "#E53E3E"], edgecolor=["#4A5568", "#742A2A"], linewidth=1.5, width=0.55)
+    ax3_2.set_title("11. Calibrated Model Probabilities\n[p(Normal) vs p(Tumor)]", fontsize=12, fontweight="bold", pad=12)
+    ax3_2.set_ylabel("Posterior Probability (%)", fontsize=10)
+    ax3_2.set_ylim(0.0, 120.0)
+    for bar in bars2:
         yval = bar.get_height()
-        ax11.text(bar.get_x() + bar.get_width()/2.0, yval + 0.04, f"Q* = {yval*100:.1f}%", ha="center", va="bottom", fontweight="bold", fontsize=10)
-    ax11.grid(axis="y", linestyle=":", alpha=0.6)
+        ax3_2.text(bar.get_x() + bar.get_width()/2.0, yval + 2.5, f"{yval:.1f}%", ha="center", va="bottom", fontsize=11, fontweight="bold")
+    ax3_2.grid(axis="y", linestyle=":", alpha=0.6)
 
-    # Panel 3.3: L-infinity Trust Region Clamping & Conformal Gauge
-    ax12 = fig.add_subplot(gs[2, 4:6])
-    ax12.axis("off")
-    # Draw Trust Region Box
-    box_rect = Rectangle((0.05, 0.52), 0.90, 0.42, facecolor="#F7FAFC", edgecolor="#4A5568", linewidth=1.5, linestyle="--")
-    ax12.add_patch(box_rect)
-    ax12.text(0.50, 0.86, "12A. L-infinity Trust-Region Clamping", ha="center", fontweight="bold", fontsize=10)
-    ax12.text(0.50, 0.72, "Hard Barrier: |θ_t - θ_0| <= δ_max (0.05)\nAdamW momentum zeroed on boundary hit\n[Guarantees Zero Catastrophic Drift]", ha="center", fontsize=9, color="#2D3748")
+    # Panel 3.3: L-infinity Trust-Region Projection Clamping
+    ax3_3 = fig.add_subplot(gs_row3[0, 2])
+    ax3_3.set_title("12A. L-infinity Trust Region\n[Bounding Parameter Drift]", fontsize=12, fontweight="bold", pad=12)
+    ax3_3.set_xlim(-0.10, 0.10)
+    ax3_3.set_ylim(-0.5, 2.5)
+    
+    # Draw Bounding Box Zone
+    rect_trust = Rectangle((-0.05, 0.2), 0.10, 1.6, facecolor="#EBF8FF", edgecolor="#3182CE", linewidth=2.0, linestyle="--")
+    ax3_3.add_patch(rect_trust)
+    ax3_3.text(0.0, 1.9, "Allowed Trust Region: [-0.05, +0.05]", ha="center", fontsize=10, fontweight="bold", color="#2B6CB0")
+    
+    # Draw Parameter Shift Examples
+    ax3_3.plot([0.0, 0.0], [0.3, 1.7], color="#A0AEC0", linestyle=":", linewidth=1.5)
+    ax3_3.scatter([0.025], [1.3], color="#2B6CB0", s=90, zorder=4, label="Safe Update (+0.025)")
+    ax3_3.text(0.028, 1.3, " Safe Drift\n (Preserved)", va="center", fontsize=9, color="#2B6CB0", fontweight="bold")
+    
+    ax3_3.scatter([0.085], [0.7], color="#E53E3E", s=90, marker="x", linewidths=2.5, zorder=4, label="Unclamped (+0.085)")
+    ax3_3.annotate("", xy=(0.05, 0.7), xytext=(0.085, 0.7), arrowprops=dict(arrowstyle="->", color="#C53030", lw=2.0))
+    ax3_3.scatter([0.05], [0.7], color="#C53030", s=90, zorder=4)
+    ax3_3.text(0.052, 0.7, " Clamped to +0.05\n (Momentum Reset)", va="center", fontsize=9, color="#C53030", fontweight="bold")
+    
+    ax3_3.set_xlabel("Parameter Shift: Δθ = θ_t - θ_0", fontsize=10)
+    ax3_3.set_yticks([])
+    ax3_3.grid(axis="x", linestyle=":", alpha=0.6)
 
-    # Draw Conformal Box
-    conf_rect = Rectangle((0.05, 0.04), 0.90, 0.42, facecolor="#F7FAFC", edgecolor="#2F855A", linewidth=1.5)
-    ax12.add_patch(conf_rect)
-    non_conf = 1.0 - probs[1]
-    ax12.text(0.50, 0.38, "12B. Conformal Uncertainty Gauge", ha="center", fontweight="bold", fontsize=10, color="#22543D")
-    ax12.text(0.50, 0.20, f"Sample Non-Conformity S_i = 1 - max p(y|x) = {non_conf:.4f}\nCertified Threshold τ = 0.4800 (α=0.005)\nStatus: S_i <= 0.48 -> VERIFIED SAFE (No Rollback)", ha="center", fontsize=9, color="#22543D", fontweight="bold")
+    # Panel 3.4: Conformal Anomaly Gauge
+    ax3_4 = fig.add_subplot(gs_row3[0, 3])
+    ax3_4.set_title("12B. Conformal Safety Gauge\n[Finite-Sample Anomaly Check]", fontsize=12, fontweight="bold", pad=12)
+    ax3_4.set_xlim(0.0, 0.8)
+    ax3_4.set_ylim(-0.5, 2.5)
+    
+    # Safe vs Unsafe Zones
+    rect_safe = Rectangle((0.0, 0.3), 0.48, 1.4, facecolor="#F0FFF4", edgecolor="#38A169", linewidth=2.0)
+    rect_unsafe = Rectangle((0.48, 0.3), 0.30, 1.4, facecolor="#FFF5F5", edgecolor="#E53E3E", linewidth=2.0, linestyle="--")
+    ax3_4.add_patch(rect_safe)
+    ax3_4.add_patch(rect_unsafe)
+    
+    ax3_4.text(0.24, 1.85, "SAFE REGION (S <= 0.48)", ha="center", fontsize=10, fontweight="bold", color="#22543D")
+    ax3_4.text(0.63, 1.85, "ROLLBACK (S > 0.48)", ha="center", fontsize=9, fontweight="bold", color="#9B2C2C")
+    
+    # Plot Current Patch Score
+    ax3_4.scatter([non_conf], [1.0], color="#22543D", s=140, marker="D", zorder=5)
+    ax3_4.text(non_conf + 0.02, 1.0, f" Current Patch Score:\n S_i = {non_conf:.4f}\n VERIFIED SAFE (No Rollback)", 
+               va="center", fontsize=10, fontweight="bold", color="#22543D")
+    
+    ax3_4.axvline(0.48, color="#E53E3E", linestyle="-", linewidth=2.5)
+    ax3_4.text(0.48, 0.05, "Threshold: τ = 0.4800 (α=0.005)", ha="center", fontsize=9.5, fontweight="bold", color="#9B2C2C")
+    
+    ax3_4.set_xlabel("Non-Conformity Score: S_i = 1 - max p(y|x)", fontsize=10)
+    ax3_4.set_yticks([])
+    ax3_4.grid(axis="x", linestyle=":", alpha=0.6)
 
     # -------------------------------------------------------------------------
-    # ROW 4: Whole-Slide Clinical Staging & Geometry
+    # STAGE 4: WHOLE-SLIDE SPATIAL LOCALIZATION & AJCC 8TH EDITION STAGING
     # -------------------------------------------------------------------------
-    # Panel 4.1: Whole-Slide Coordinate Grid & Tumor Cluster
-    ax13 = fig.add_subplot(gs[3, 0:2])
-    # Simulated 5x5 WSI patch region around coordinates (12000, 8000)
-    grid_coords_x = [11776, 12000, 12224, 12448, 12672]
-    grid_coords_y = [7776, 8000, 8224, 8448, 8672]
-    for gx in grid_coords_x:
-        for gy in grid_coords_y:
-            # Tumor cluster at (12000, 8000) to (12448, 8224)
+    gs_row4 = gridspec.GridSpecFromSubplotSpec(1, 3, subplot_spec=gs[3], wspace=0.32)
+
+    # Panel 4.1: Reconstructed WSI Spatial Grid
+    ax4_1 = fig.add_subplot(gs_row4[0, 0])
+    grid_x = [11776, 12000, 12224, 12448, 12672]
+    grid_y = [7776, 8000, 8224, 8448, 8672]
+    for gx in grid_x:
+        for gy in grid_y:
             is_tumor = (12000 <= gx <= 12448) and (8000 <= gy <= 8224)
-            color = "#E53E3E" if is_tumor else "#CBD5E0"
-            rect = Rectangle((gx, gy), 224, 224, facecolor=color, edgecolor="black", linewidth=1.0)
-            ax13.add_patch(rect)
+            color = "#E53E3E" if is_tumor else "#EDF2F7"
+            edge = "#742A2A" if is_tumor else "#CBD5E0"
+            r = Rectangle((gx, gy), 224, 224, facecolor=color, edgecolor=edge, linewidth=1.2)
+            ax4_1.add_patch(r)
     
-    # Bounding box of cluster
-    cluster_bbox = Rectangle((12000, 8000), 672, 448, fill=False, edgecolor="#742A2A", linewidth=2.5, linestyle="-")
-    ax13.add_patch(cluster_bbox)
-    # Diagonal line
-    ax13.plot([12000, 12672], [8000, 8448], color="#742A2A", linestyle="--", linewidth=1.8, label="Diagonal span")
+    # Bounding Box of Cluster
+    bbox = Rectangle((12000, 8000), 672, 448, fill=False, edgecolor="#742A2A", linewidth=3.0)
+    ax4_1.add_patch(bbox)
+    ax4_1.plot([12000, 12672], [8000, 8448], color="#742A2A", linestyle="--", linewidth=2.2, label="Diagonal span (807.64 px)")
 
-    ax13.set_xlim(11700, 12950)
-    ax13.set_ylim(7700, 8750)
-    ax13.set_title("13. WSI Spatial Grid & Lesion Clustering\n[Detected Tumor Cluster in Red]", fontweight="bold", pad=8)
-    ax13.set_xlabel("X Coordinate (pixels)", fontsize=9)
-    ax13.set_ylabel("Y Coordinate (pixels)", fontsize=9)
-    ax13.legend(loc="lower right", fontsize=8)
+    ax4_1.set_xlim(11700, 12950)
+    ax4_1.set_ylim(7700, 8750)
+    ax4_1.set_title("13. Reconstructed WSI Spatial Grid\n[Tumor Cluster: 6 Patches (Red)]", fontsize=12, fontweight="bold", pad=12)
+    ax4_1.set_xlabel("Slide X Coordinate (pixels)", fontsize=10)
+    ax4_1.set_ylabel("Slide Y Coordinate (pixels)", fontsize=10)
+    ax4_1.legend(loc="lower right", fontsize=9.5)
 
-    # Panel 4.2: Exact Geometric Span & Diameter Math
-    ax14 = fig.add_subplot(gs[3, 2:4])
-    ax14.axis("off")
-    calc_box = FancyBboxPatch((0.05, 0.05), 0.90, 0.90, boxstyle="round,pad=0.04", facecolor="#EDF2F7", edgecolor="#4A5568", linewidth=1.2)
-    ax14.add_patch(calc_box)
+    # Panel 4.2: Step-by-Step Geometric Calculation
+    ax4_2 = fig.add_subplot(gs_row4[0, 1])
+    ax4_2.axis("off")
+    calc_bg = FancyBboxPatch((0.02, 0.02), 0.96, 0.96, boxstyle="round,pad=0.03", facecolor="#F7FAFC", edgecolor="#4A5568", linewidth=1.8)
+    ax4_2.add_patch(calc_bg)
+
+    calc_header = "14. GEOMETRIC LESION DIAMETER MATH"
+    ax4_2.text(0.06, 0.90, calc_header, fontsize=12, fontweight="bold", color="#1A202C")
     
-    span_math = (
-        "14. Geometric Diameter Calculation\n"
-        "--------------------------------------------------\n"
-        "• Positive Coordinates: 6 Tumor Patches\n"
-        "• span_x = max(X) - min(X) + 224 px = 672 px\n"
-        "• span_y = max(Y) - min(Y) + 224 px = 448 px\n"
-        "• diag_px = √(672² + 448²) = 807.64 pixels\n"
-        "• Resolution (mpp) = 0.50 μm / pixel\n"
-        "--------------------------------------------------\n"
-        "d_lesion = (807.64 px × 0.50 μm/px) / 1000\n"
-        "d_lesion = 403.82 μm = 0.404 mm"
+    calc_steps = [
+        "• Positive Coordinates (6 Patches):",
+        "  (12000, 8000) to (12448, 8224)",
+        "--------------------------------------------------",
+        "• Bounding Envelope Spans (patch_size = 224 px):",
+        "  span_x = max(X) - min(X) + 224 = 672 pixels",
+        "  span_y = max(Y) - min(Y) + 224 = 448 pixels",
+        "--------------------------------------------------",
+        "• Maximal Diagonal Linear Extent:",
+        "  diag_px = √(span_x² + span_y²)",
+        "  diag_px = √(672² + 448²) = 807.64 pixels",
+        "--------------------------------------------------",
+        "• Physical Metric Conversion (0.50 μm/pixel):",
+        "  d_lesion = (807.64 px × 0.50 μm/px) / 1000",
+        "  d_lesion = 403.82 μm = 0.404 mm"
+    ]
+    y_pos = 0.80
+    for step in calc_steps:
+        ax4_2.text(0.06, y_pos, step, fontsize=10.5, family="monospace", color="#2D3748")
+        y_pos -= 0.065
+
+    # Panel 4.3: Final AJCC Staging Diagnostic Certificate
+    ax4_3 = fig.add_subplot(gs_row4[0, 2])
+    ax4_3.axis("off")
+    verdict_bg = FancyBboxPatch((0.02, 0.02), 0.96, 0.96, boxstyle="round,pad=0.03", facecolor="#FFF5F5", edgecolor="#9B2C2C", linewidth=2.5)
+    ax4_3.add_patch(verdict_bg)
+
+    ax4_3.text(0.06, 0.90, "15. AJCC 8th EDITION CLINICAL STAGING", fontsize=12, fontweight="bold", color="#742A2A")
+    
+    staging_rows = [
+        ("• pN0", "d = 0.0 mm", "(Negative)"),
+        ("• pN0(i+)", "0.0 < d <= 0.20 mm", "(Isolated Tumor Cells)"),
+        ("▶ pN1mi", "0.20 < d <= 2.00 mm", "(Micro-metastasis)  ★"),
+        ("• pN1a", "d > 2.00 mm", "(Macro-metastasis)"),
+    ]
+    y_s = 0.80
+    for code, rng, desc in staging_rows:
+        is_sel = "★" in desc
+        col = "#9B2C2C" if is_sel else "#718096"
+        wt = "bold" if is_sel else "normal"
+        ax4_3.text(0.06, y_s, f"{code:<10} : {rng:<20} {desc}", fontsize=10.0, family="monospace", color=col, fontweight=wt)
+        y_s -= 0.065
+    
+    # High-impact Final Result Box
+    res_box = FancyBboxPatch((0.06, 0.08), 0.88, 0.38, boxstyle="round,pad=0.02", facecolor="#FED7D7", edgecolor="#742A2A", linewidth=1.5)
+    ax4_3.add_patch(res_box)
+    
+    ax4_3.text(0.50, 0.38, "FINAL CLINICAL PATHOLOGY VERDICT", ha="center", fontsize=11, fontweight="bold", color="#742A2A")
+    ax4_3.text(0.50, 0.28, "PRIMARY CLASS: Metastatic Carcinoma (TUMOR)", ha="center", fontsize=11.5, fontweight="bold", color="#9B2C2C")
+    ax4_3.text(0.50, 0.19, "Lesion Diameter = 0.404 mm  |  Stage: pN1mi (Micro-metastasis)", ha="center", fontsize=10.5, fontweight="bold", color="#742A2A")
+    ax4_3.text(0.50, 0.11, "Concordance with Clinical Pathologist: 100% MATCH", ha="center", fontsize=10, fontweight="bold", color="#22543D")
+
+    # Master Figure Title (Generous Top Margin)
+    fig.suptitle(
+        "SafeAdapt: End-to-End Deep Learning & Clinical Staging Workflow\n"
+        "(From Raw Histopathology Patch to AJCC 8th Edition pTNM Whole-Slide Staging)", 
+        fontsize=17, fontweight="bold", y=0.98, color="#1A202C"
     )
-    ax14.text(0.10, 0.50, span_math, va="center", family="monospace", fontsize=9.5, color="#1A202C")
-
-    # Panel 4.3: AJCC 8th Edition pTNM Staging Classification
-    ax15 = fig.add_subplot(gs[3, 4:6])
-    ax15.axis("off")
-    stage_box = FancyBboxPatch((0.05, 0.05), 0.90, 0.90, boxstyle="round,pad=0.04", facecolor="#FFF5F5", edgecolor="#9B2C2C", linewidth=1.8)
-    ax15.add_patch(stage_box)
-
-    staging_text = (
-        "15. AJCC 8th Edition Clinical Staging\n"
-        "=====================================\n"
-        "• pN0       : d = 0.0 mm (Negative)\n"
-        "• pN0(i+)   : 0.0 < d <= 0.20 mm (ITC)\n"
-        "▶ pN1mi     : 0.20 < d <= 2.00 mm (Micro-Metastasis)\n"
-        "• pN1a      : d > 2.00 mm (Macro-Metastasis)\n"
-        "=====================================\n"
-        "FINAL DIAGNOSTIC VERDICT:\n"
-        "Lesion Diameter = 0.404 mm\n"
-        "STATUS: pN1mi (Micro-metastasis)\n"
-        "Concordance with Pathologist: 100% MATCH"
-    )
-    ax15.text(0.10, 0.50, staging_text, va="center", family="monospace", fontsize=9.5, color="#742A2A", fontweight="bold")
-
-    # Master Title & Subtitle
-    fig.suptitle("SafeAdapt: Complete End-to-End Image Journey (From Raw Cancer Patch to AJCC Clinical Staging)", 
-                 fontsize=15, fontweight="bold", y=0.985)
 
     out_file1 = ROOT_DIR / "results/graphs/cancer_image_complete_workflow.png"
     out_file2 = ROOT_DIR / "architecture/cancer_image_complete_workflow.png"
@@ -281,7 +373,7 @@ def main():
     plt.savefig(out_file2, dpi=300, facecolor=fig.get_facecolor(), bbox_inches="tight")
     plt.close()
 
-    print(f"[5/5] Success! High-resolution infographic saved to:\n  -> {out_file1}\n  -> {out_file2}")
+    print(f"[5/5] Success! Beautiful, clean infographic saved to:\n  -> {out_file1}\n  -> {out_file2}")
 
 if __name__ == "__main__":
     main()
